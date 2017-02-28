@@ -1,0 +1,78 @@
+= CIP2017-02-07 Map Projection
+:numbered:
+:toc:
+:toc-placement: macro
+:source-highlighter: codemirror
+
+*Author:* Tobias Lindaaker <tobias.lindaaker@neotechnology.com>
+
+toc::[]
+
+== Map Projection
+
+Map projection takes a map or entity (node or relationship) and creates a map based on selected properties from map or entity.
+The map projection largely reuses the map syntax of curly braces and comma separated entries.
+But the projection entries are just a single identifier starting with a dot (.).
+The projected map entries use the same key in the projected map as in the source map.
+
+The following example:
+
+[source, cypher]
+----
+someMap {.alpha, .beta}
+----
+
+is thus equivalent to:
+
+[source, cypher]
+----
+{alpha: someMap.alpha, beta: someMap.beta}
+----
+
+In order to be further useful, map projection allow other types of selectors to augment the projected map.
+
+=== Selectors
+
+There are four different types of entries allowed in a map projection:
+
+• *Property selector* - includes a property from the original map into the projected map using the same key in the projected map as in the original map
+• *Variable selector* - includes an entry into the projected map based on a variable in the current scope. The key for the entry in the projected map will be the same as the name of the variable. This selector optionally also allows further projection of a nested map, if the selected variable is a map or entity.
+• *Literal entry* - includes a entry into the projected map using the regular map entry syntax, i.e. with the value being explicitly different from the key. In this case the value can be any arbitrary expression, just like in a regular map literal.
+• *All properties selector* - includes all properties from the original map or entity into the projected map.
+  If any properties explicitly stated in the map projection through another selector type conflicts with a property in the original map, the explicitly stated entry takes precedence and the value from that expression overrides the value from the original map.
+
+=== Syntax
+
+The EBNF syntax of map projection takes the following place in the Cypher syntax:
+
+----
+Atom = … | MapProjection | … ;
+
+MapProjection = Variable, ProjectedMap ;
+
+ProjectedMap = '{', (AllPropertiesSelector | ProjectionEntry), {',', ProjectionEntry}, '}' ;
+
+ProjectionEntry = LiteralEntry
+                | PropertySelector
+                | VariableSelector
+                ;
+LiteralEntry = PropertyKeyName, ':', Expression ;
+PropertySelector = '.', Variable ;
+VariableSelector = Variable ;
+AllPropertiesSelector = '*', {'-', Variable} ;
+
+ReturnItem = Expression
+           | (Expression, 'AS', Variable)
+           | (ProjectedMap, 'AS', Variable)
+           ;
+----
+
+=== Examples
+
+[source, cypher]
+.Fetch name and address for a person
+----
+MATCH (person:Person{userId=$user})-[:ADDRESS]->(address)
+RETURN person {.firstName, .lastName, id: $user,
+               address {.streetAddress, .city, .postalCode} }
+----
